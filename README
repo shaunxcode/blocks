@@ -1,0 +1,9 @@
+This is a quick hack I wrote over a year ago when "sifteo" blocks were first announced. I wanted to mess around with block communication and how you would write programs for them. Everything is self contained in one file (index.html) w/ jquery loading from google cdn. 
+
+As you can see MathApp is a simple function but pretty much emulates basic math. Bare in mind it is simply doing an eval on the expression of what ever is on the left hand side of an = block and placing it on the block to the right. 
+
+You can create multiple new blocks by entering a string in the input i.e. "5 + 5 = _" blocks for each of those characters. Then it is up to you to align them to have the program run as expected. 
+
+Writing other apps should be relatively simple. This demo is just meant to demonstrate the communication aspect in regards to each blocks awareness of the others and what that means to you as you write an app which is "neighbor aware".  
+
+This could be cleaned up dramatically but I just wanted to share it with the world rather than letting it sit in my dropbox forever. 

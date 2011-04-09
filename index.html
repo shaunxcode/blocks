@@ -1,0 +1,287 @@
+<html>
+<head>
+<title>Blocks Demo</title>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.0/jquery.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.10/jquery-ui.min.js"></script>
+<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/smoothness/jquery-ui.css" type="text/css" media="all" />
+<script type="text/javascript" src="raphael-min.js"></script>
+<script>
+
+var BlockId = 0;
+function BlockList() {
+	this.blocks = {};
+}
+
+BlockList.prototype = {
+	set: function(key, value) {
+		this.blocks[key] = value;
+		return this;
+	}
+}
+
+var Blocks = {};
+
+var Dirs = {
+	'North': 'South', 
+	'NorthEast': 'SouthWest',
+	'East': 'West', 
+	'SouthEast': 'NorthWest',
+	'South': 'North', 
+	'SouthWest': 'NorthEast',
+	'West': 'East',
+	'NorthWest': 'SouthEast'
+};
+	
+function Block(id, element, value) {
+	this.id = id;
+	this.element = element;
+	this.value = value;
+	this.neighbors = {};
+	$('#Screen').append(this.element);
+	this.paper = Raphael(document.getElementById(id), 100, 100);
+	this.draw();
+}
+
+Array.prototype.prepend = function(val) {
+	this.unshift(val);
+	return this;
+}
+
+
+Block.prototype = {
+	id: false,
+	element: false,
+	neighbors:false,
+	pos: function() {
+		var position = this.element.position();
+		return {
+			left: position.left,
+			top: position.top,
+			height: this.element.outerHeight(),
+			width: this.element.outerWidth()
+		}
+	},
+	
+	mainColor: '#90be37',
+	
+	line: function(x, y) {
+		this.paper.path('M50 50L' + x + ' ' + y).attr({stroke: this.mainColor, 'stroke-width': 5, opacity: 0.3});
+		return this;
+	},
+	
+	setValue: function(newValue) {
+		if(this.value != newValue) {
+			this.value = newValue;
+			this.draw();
+		}
+		return this;
+	},
+	
+	draw: function() {
+		this.paper.clear();
+		this.paper.circle(50, 50, 10).attr({fill: this.mainColor, opacity: 0.3});
+		
+		if(this.neighbors.North) {
+			this.line(50, 0);
+		}
+		 
+		if(this.neighbors.NorthEast) {
+			this.line(100, 0);
+		}
+
+		if(this.neighbors.East) {
+			this.line(100, 50);
+		}
+
+		if(this.neighbors.SouthEast) {
+			this.line(100, 100);
+		}
+		
+		if(this.neighbors.South) {
+			this.line(50, 100);
+		}
+		
+		if(this.neighbors.SouthWest) {
+			this.line(0, 100);
+		}
+
+		if(this.neighbors.West) {
+			this.line(0, 50);
+		}
+		
+		if(this.neighbors.NorthWest) {
+			this.line(0, 0);
+		}
+		
+		if(this.value) {
+			this.paper.text(50,50, this.value).attr({'font-size': '80', fill: this.mainColor, stroke: this.mainColor})
+		}
+		
+		return this;
+	},
+	
+	addNeighbor: function(dir, id) {
+		this.neighbors[dir] = id;
+		this.draw();
+		return this;
+	}, 
+	
+	removeNeighbor: function(dir) {
+		this.neighbors[dir] = false;
+		this.draw();
+		this.run();
+		return this;
+	},
+	
+	findNeighbors: function() {		
+		var myPos = this.pos();
+		for(var dir in Dirs) { 
+			var match = this['findNeighborTo' + dir](myPos);
+			
+			if(this.neighbors[dir] && this.neighbors[dir] !== match) {
+				Blocks[this.neighbors[dir]].removeNeighbor(Dirs[dir]);
+			}
+			
+			//link to other block e-> <-w 
+			if(match) {
+				Blocks[match].addNeighbor(Dirs[dir], this.id);
+			}
+			
+			this.addNeighbor(dir, match);
+		}
+		return this;
+	},
+	
+	findNeighbor: function(left, top) {
+		for(var bid in Blocks) {
+			var theirPos = Blocks[bid].pos();
+			if((theirPos.left == left) &&
+			   (theirPos.top  == top)) {
+				return bid;
+			}
+		}
+		return false;
+	},
+	
+	findNeighborToNorth: function(pos) {
+		return this.findNeighbor(pos.left, pos.top - pos.height);
+	},
+	
+	findNeighborToNorthEast: function(pos) {
+		return this.findNeighbor(pos.left + pos.width, pos.top - pos.height);
+	},
+	
+	findNeighborToEast: function(pos) {
+		return this.findNeighbor(pos.left + pos.width, pos.top);
+	}, 
+	
+	findNeighborToSouthEast: function(pos) {
+		return this.findNeighbor(pos.left + pos.width, pos.top + pos.height);
+	},
+	
+	findNeighborToSouth: function(pos) {
+		return this.findNeighbor(pos.left, pos.top + pos.height);
+	},
+	
+	findNeighborToSouthWest: function(pos) {
+		return this.findNeighbor(pos.left - pos.width, pos.top + pos.height);
+	},
+	
+	findNeighborToWest: function(pos) {
+		return this.findNeighbor(pos.left - pos.width, pos.top);
+	},
+	
+	findNeighborToNorthWest: function(pos) {
+		return this.findNeighbor(pos.left - pos.width, pos.top - pos.height);
+	},
+		
+	run: function() {
+		if(!this.neighbors.West) {
+			var getEastValues = function(N) {
+				var b = Blocks[N.East];
+				return b.neighbors.East ? getEastValues(b.neighbors).prepend([b.id, b.value]) : [[b.id, b.value]];
+			}
+			
+			if(this.neighbors.East) {
+				var blockList = getEastValues(this.neighbors).prepend([this.id, this.value]);
+				MathApp(blockList);
+			}
+		} else {
+			Blocks[this.neighbors.West].run();
+		}
+		
+		return this;
+	}
+}
+
+function MathApp(blockList) {
+	var leftHand = [];
+	var rightHand = false;
+	$.each(blockList, function(k, item) {
+		if(rightHand) return;
+		
+		var val = item.pop();
+		if(val == '=') {
+			rightHand = blockList[k + 1] ? blockList[k + 1].shift() : false;
+		} else {
+			leftHand.push(val);
+		}
+	})
+	
+	if(rightHand) {
+		Blocks[rightHand].setValue(parseInt(eval(leftHand.join(''))));
+	}
+}
+
+
+$(function(){
+	$('#NewBlock').click(function(){
+		$.each($('#NewBlockValue').val().trim().split(' '), function(i, val) { 
+			var id = 'Block' + (++BlockId);
+			var newBlock = new Block(id, $('<div />').attr({'class': 'Block', 'id': id}), val);
+			Blocks[id] = newBlock; 
+			$('.Block').draggable({
+				snap: true,
+				drag: function(event, ui) {
+				//	Blocks[ui.helper.context.id].findNeighbors();
+					},
+				stop: function(event, ui) {
+					Blocks[ui.helper.context.id].findNeighbors().run();
+				}
+			});
+		}); 
+	});
+});
+</script>
+<style>
+	.Block {
+		border: 4px solid #dadada;
+		width:100px;
+		height:100px;
+		background:#070707;
+		-moz-border-radius: 11px;
+		-webkit-border-radius: 11px;
+		cursor:pointer;
+		overflow:hidden;
+		position: absolute;
+		left: 1em;
+		top:2em;
+	}
+	
+	.Block input {
+		border: 0;
+		width: 100%;
+		height: 100%;
+		background: transparent;
+		color: #8fbd36;
+		font-size:4em;
+		text-align: center;
+	}
+</style>
+</head>
+<body>
+<input type="text" id="NewBlockValue">
+<button id="NewBlock">New Block(s)</button>
+<div id="Screen"></div>
+</body>
+</html>
